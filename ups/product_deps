@@ -54,12 +54,11 @@ end_qualifier_list
 # Table fragment.
 #
 ####################################
-# table_fragment_begin
-#     # currently, XML pandora files are installed in 'scripts':
-#     pathPrepend(FW_SEARCH_PATH, ${SBNCODE_DIR}/scripts)
-#     pathPrepend(PYTHONPATH, ${SBNCODE_FQ_DIR}/lib)
-# table_fragment_end
+table_fragment_begin
+  pathPrepend(PYTHONPATH, ${UPS_PROD_DIR}/python)
+table_fragment_end
 ####################################
+
 
 ####################################
 # Backmatter.
