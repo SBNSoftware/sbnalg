@@ -31,7 +31,7 @@ define_pythonpath
 # Product table.
 
 product          version   qual   flags  <table_format=2>
-larsoftobj       v10_00_05
+lardataalg       v10_00_04
 sbnobj           v10_00_06
 sbnanaobj        v10_00_00
 # sbndata          v01_07
@@ -42,7 +42,7 @@ end_product_list
 ####################################
 # Qualifier table.
 
-qualifier   larsoftobj  sbnobj     sbnanaobj  sbndata  notes
+qualifier   lardataalg  sbnobj     sbnanaobj  sbndata  notes
 c14:debug   c14:debug   c14:debug  c14:debug  -nq-
 c14:prof    c14:prof    c14:prof   c14:prof   -nq-
 e26:debug   e26:debug   e26:debug  e26:debug  -nq-
