@@ -11,10 +11,10 @@ This module requires ROOT.
 __all__ = [
   'readHeader',
   'SourceCode',
-  'make_getValidHandle',
   'makeFileList',
   'forEach',
   'eventLoop',
+  'EventIterator',
   'findFHiCL',
   'loadConfiguration',
   'ConfigurationClass',
@@ -31,9 +31,9 @@ import ROOTutils
 from ROOTutils import ROOT
 import galleryUtils
 from galleryUtils import (
-  make_getValidHandle, makeFileList, forEach, eventLoop,
+  makeFileList, forEach, EventIterator, eventLoop,
   findFHiCL, loadConfiguration, ConfigurationHelper, ConfigurationClass,
-  startMessageFacility, ServiceRegistryClass,
+  ServiceRegistryClass,
   )
 from cppUtils import UnusedAttr
 
@@ -48,16 +48,16 @@ readHeader = galleryUtils.readHeader
 ################################################################################
 ### LArSoft
 ################################################################################
-def startMessageFacility(config=None, registry=None):
+def startMessageFacility(config=None, registry=None, applName=None):
   '''
-  Starts the MessageFacility
+  Starts the MessageFacility.
   '''
   assert(config or registry)
 
   # deal with messagefacility first
   if not (registry and registry.has("message")):
     messageConfig = config.service("message") if config else registry.config("message")
-    startMessageFacility(messageConfig) # use default name
+    galleryUtils.startMessageFacility(messageConfig, applName=applName)
     if registry: registry.register("message", None) # there is no direct access, sorry
   # if need to load message facility
 

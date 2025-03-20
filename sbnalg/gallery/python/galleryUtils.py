@@ -34,6 +34,7 @@ __all__ = [
   'makeFileList',
   'forEach',
   'eventLoop',
+  'EventIterator',
   'findFHiCL',
   'loadConfiguration',
   'ConfigurationClass',
@@ -526,8 +527,9 @@ class startMessageFacility:
     if not startMessageFacility.Init: self.init(config, applName)
   def init(self, config, applName):
     if not applName: applName = os.path.basename(sys.argv[0])
+    if not applName: applName = "this application"
     if isinstance(config, ConfigurationClass): config = config.service("message")
-    print("Starting message facility for %s..." % applName)
+    print(f"Starting message facility for {applName}...")
     ROOT.mf.StartMessageFacility(config, applName)
     startMessageFacility.Init = True
   # init()
