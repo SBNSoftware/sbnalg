@@ -1,0 +1,73 @@
+########################################################################
+# product_deps
+#
+#   Define attributes of a package to be built and distributed as a UPS
+#   product.
+#
+# This file is parsed as a consequence of sourcing the
+# setup_for_development or setup_deps shell-agnostic scripts.
+#
+# Copied from sbncode v10_04_05 (which used `cetmodules` 3.20.00).
+# Comments were removed; an explanation of the syntax can be obtained
+# generating a new `product_deps` file with cetmodules.
+########################################################################
+
+####################################
+# Basic information.
+
+# (version specified in ../CMakeLists.txt)
+parent sbnalg
+
+
+####################################
+# Directory specifications.
+
+# all left to defaults
+
+define_pythonpath
+
+
+####################################
+# Product table.
+
+product          version   qual   flags  <table_format=2>
+lardataalg       v10_00_04
+sbnobj           v10_00_08
+sbnanaobj        v10_00_01
+# sbndata          v01_07
+cetmodules       v3_24_01  -      only_for_build
+end_product_list
+
+
+####################################
+# Qualifier table.
+
+qualifier   lardataalg  sbnobj     sbnanaobj  sbndata  notes
+c14:debug   c14:debug   c14:debug  c14:debug  -nq-
+c14:prof    c14:prof    c14:prof   c14:prof   -nq-
+e26:debug   e26:debug   e26:debug  e26:debug  -nq-
+e26:prof    e26:prof    e26:prof   e26:prof   -nq-
+end_qualifier_list
+
+
+####################################
+# Table fragment.
+#
+####################################
+table_fragment_begin
+  pathPrepend(PYTHONPATH, ${UPS_PROD_DIR}/python)
+table_fragment_end
+####################################
+
+
+####################################
+# Backmatter.
+
+# Preserve tabs and formatting in emacs and vi / vim:
+
+### Local Variables:
+### mode: sh
+### tab-width: 8
+### End:
+
+# vi:set ts=8 noexpandtab:
