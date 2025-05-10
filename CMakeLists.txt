@@ -32,7 +32,7 @@ find_package( sbnobj REQUIRED )
 find_package( sbnanaobj REQUIRED )
 find_package( CLHEP REQUIRED )
 find_package( ROOT REQUIRED )
-# find_package( Boost COMPONENTS system filesystem REQUIRED )
+find_package( Boost COMPONENTS system filesystem REQUIRED )
 
 # macros for dictionary and simple_plugin
 include(ArtDictionary)
