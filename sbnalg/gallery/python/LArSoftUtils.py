@@ -158,9 +158,6 @@ def loadWireReadout(
     SourceCode.loadHeaderFromUPS('larcorealg/Geometry/WireReadoutSorterStandard.h')
     sorterClass = ROOT.geo.WireReadoutSorterStandard
 
-  SourceCode.loadHeaderFromUPS('icarusalg/Geometry/ICARUSstandaloneGeometrySetup.h')
-  SourceCode.loadLibrary("icarusalg_Geometry")
-
   service = ROOT.lar.standalone.SetupReadout[sorterClass,serviceClass](serviceConfig, geometry)
   if registry: registry.register(serviceName, service)
 
