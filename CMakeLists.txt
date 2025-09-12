@@ -6,7 +6,7 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 
 find_package(cetmodules 3.27.00 REQUIRED)
-project(sbnalg VERSION 10.09.00 LANGUAGES CXX)
+project(sbnalg VERSION 10.10.02 LANGUAGES CXX)
 
 message(STATUS "\n\n  ==========================   ${PROJECT_NAME}   ==========================")
 
