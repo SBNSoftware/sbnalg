@@ -151,7 +151,7 @@ make_getValidHandle = HandleMaker()
 
 def makeFileList(
  *filePaths: "a list of input files"
- ) -> "a list of files suitable to construct a `gallery.Event object":
+ ) -> "a list of files suitable to construct a `gallery.Event` object":
   """Creates a file list suitable for `gallery::Event`.
   
   If a file ends with `.root`, it is added directly to the list.
@@ -159,12 +159,7 @@ def makeFileList(
   (see `ROOTutils.expandFileList()`).
   File list recursion is disabled.
   """
-  files = ROOT.vector(ROOT.string)()
-  for path in filePaths:
-    entries = [ path ] if path.endswith('.root') else expandFileList(path)
-    for entry in entries: files.push_back(entry)
-  # for
-  return files
+  return sum((( [ path ] if path.endswith('.root') else expandFileList(path) ) for path in filePaths), [])
 # makeFileList()
 
 
