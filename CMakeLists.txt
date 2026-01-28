@@ -7,8 +7,6 @@ cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 
 find_package(cetmodules 3.27.00 REQUIRED)
 project(sbnalg VERSION 10.14.02.01 LANGUAGES CXX)
-# Explicitly set the project string
-set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING "10.14.02__01sbn2")
 
 message(STATUS "\n\n  ==========================   ${PROJECT_NAME}   ==========================")
 
