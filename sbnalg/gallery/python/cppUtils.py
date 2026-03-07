@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-
 __doc__ = """
 Collection of utilities to interface C++ code with Python via PyROOT.
 
@@ -13,7 +11,7 @@ __all__ = [
   'SourceCode',
   ]
 
-import sys, os
+import sys, os, logging
 from ROOTutils import ROOT
 
 # Make sure <span> is not included in the range v3 library
@@ -56,12 +54,9 @@ class SourceCentral:
   def addIncPath(self, path, force=False):
     expPath = os.path.expandvars(path)
     if not os.path.isdir(expPath):
-      print(
-        "Warning: include path '%s'" % path,
-        (" ( => '%s')" % expPath if path != expPath else ""),
-        " does not exist.",
-        sep='',
-        file=sys.stderr
+      Logger.warning(
+        "Include path '%s'%s does not exist.",
+        path, (" ( => '%s')" % expPath if path != expPath else ""),
         )
     if force or expPath not in self.includePaths:
       self.includePaths.append(expPath)
@@ -108,7 +103,8 @@ class SourceCentral:
     try: return self.headers[headerRelPath]
     except KeyError: pass
     headerPath = self.findHeader(headerRelPath, extraPaths=extraPaths)
-    if not headerPath: raise RuntimeError("Can't locate header file '%s'" % headerRelPath)
+    if not headerPath:
+      raise RuntimeError(f"Can't locate header file '{headerRelPath}'")
     readHeader(headerPath)
     self.headers[headerRelPath] = headerPath
     return headerPath
@@ -145,6 +141,50 @@ class SourceCentral:
     return (self.loadLibrary if self.isLibrary(relPath) else self.loadHeaderFromUPS)(relPath, extraPaths=extraPaths, force=force)
   # load()
   
+  def loadMany(self, *pathSpecs, extraPaths = [], force = False, loadAll = False):
+    """Calls `load()` for each of the path specifications.
+    
+    A path specification is a dictionary of `load()` parameters, e.g.
+    `{ relPath: 'larcorealg_Geometry', extraPaths: [] }`.
+    If a path specification is not a dictionary, it is assumed to be a `relPath`
+    and it is equivalent to having `{ relPath: pathSpec }`.
+    If an argument `extraPath` or `force` is specified in the path
+    specification, a value is used from the `extraPath` and `force` arguments
+    of this function.
+    
+    If `loadAll` is set, all loads are attempted; the return value is a pair:
+    whether an exception was thrown, and a list of all return values or
+    exceptions, one per path specification. When an exception is thrown, a
+    triplet (like `sys.exc_info()`) is representing it in the return value.
+    
+    Otherwise, the loading is interrupted at the first exception, and that
+    exception is passed through.
+    """
+    
+    # convert all specifications into dictionaries
+    pathSpecs = [
+      dict(relPath=spec) if isinstance(spec, str) else spec
+      for spec in pathSpecs
+      ]
+    # set the default values
+    for pathSpec in pathSpecs:
+      pathSpec.setdefault('extraPaths', extraPaths)
+      pathSpec.setdefault('force', force)
+    #
+    hasExceptions = False
+    res = []
+    for pathSpec in pathSpecs:
+      try:
+        res.append(self.load(**pathSpec))
+      except:
+        if not loadAll: raise
+        res.append(sys.exc_info())
+        hasExceptions = True
+    # for
+    return hasExceptions, res
+  # loadMany()
+  
+  
   def isLibrary(self, path):
     return os.path.splitext(path)[-1] in [ self.PlatformInfo['LibSuffix'], '' ]
   
@@ -157,7 +197,7 @@ class SourceCentral:
   
   @staticmethod
   def packageNameFromHeaderPath(headerPath):
-    return os.path.split(os.path.dirname(headerPath))[0]
+    return headerPath.split(os.sep)[0]
   
   @staticmethod
   def packageVarNameFromHeaderPath(varSuffix, headerPath):
@@ -175,6 +215,8 @@ class SourceCentral:
 
 # global instance of source tracking class
 SourceCode = SourceCentral()
+
+Logger = logging.getLogger(__name__)
 
 # type for decorations
 class UnusedAttr: pass
