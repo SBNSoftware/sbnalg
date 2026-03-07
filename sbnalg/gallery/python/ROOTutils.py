@@ -13,6 +13,10 @@ __all__ = [
   "ROOT",
   ]
 
+import logging
+
+Logger = logging.getLogger(__name__)
+
 ################################################################################
 ###
 ### Try to save the command line arguments from unconsiderate ROOT behaviour
@@ -49,11 +53,11 @@ def ROOTloader():
       
   or equivalent.
   """
-  import sys, logging
+  import sys
   try:              alreadyLoaded = 'gInterpreter' in dir(ROOT)
   except NameError: alreadyLoaded = False
   if alreadyLoaded:
-    logging.warning(
+    Logger.warning(
       "ROOT module was loaded before ROOTutils.py: command line arguments may be garbled"
       )
     return sys.modules['ROOT']
@@ -62,14 +66,14 @@ def ROOTloader():
   class EmptyArgs:
     def __enter__(self):
       self.args = sys.argv
-      logging.debug("Saving command line: %s", self.args)
+      Logger.debug("Saving command line: %s", self.args)
       sys.argv = sys.argv[0:1]
-      logging.debug(
+      Logger.debug(
        "Replaced command line %s with %s before loading ROOT module",
        self.args, sys.argv)
     def __exit__(self, exc_type, exc_value, traceback):
       sys.argv = self.args
-      logging.debug("Restored command line %s", sys.argv)
+      Logger.debug("Restored command line %s", sys.argv)
   # class EmptyArgs
   
   with EmptyArgs():
@@ -258,14 +262,15 @@ def getROOTclass(classPath):
 ################################################################################
 # this is not really specific to ROOT, but we often have ROOT file lists
 def expandFileList(
- fileListPath: "path of the file list",
+ fileListPaths: "path (or paths) of the file list (or single file)",
  comment: "(default: '#') character used to introduce a comment" = '#',
  fileListSuffixes: "suffix of entries to recursively add file lists" = [],
+ fileSuffixes: "suffix of entries never to be treated as file lists" = [ '.root' ],
  ) -> "a list of file names":
-  """Returns a list of file names as found in the specified file list.
+  """Returns a list of file names as found in the specified file lists.
   
-  The `fileListPath` path is read as a text file; each line represents a full
-  file path.
+  The `fileListPaths` paths are read as text files; in them, each line
+  represents a full file path.
   Empty lines and lines starting with a comment character are ignored.
   Also if blanks and a comment character are found, the content of the line
   from the first of those blank characters on is ignored as part of a comment.
@@ -273,15 +278,69 @@ def expandFileList(
   
   If file list suffixes are specified, a line ending with any of those suffixes
   will be considered a file list itself, and recursively expanded.
+  If file suffixes are specified, a line ending with any of those suffixes
+  will be considered a file, and not expanded. That takes priority over the file
+  list suffix.
   
-  If `fileListPath` can't be read, an exception is raised.
+  If any of the file lists in `fileListPaths` can't be read, an exception is
+  raised.
+  
+  NOTE: because of the internal implementation, a `fileListPaths` that is a
+    collection of file names that are all one character long may be mistaken
+    for a string. The general solution is: do not name your file not file lists
+    with a single-character name. It's most often a bad idea anyway.
   """
   
-  import logging
+  expandAgain = lambda path: expandFileList(
+    path, comment=comment,
+    fileListSuffixes=fileListSuffixes, fileSuffixes=fileSuffixes,
+    )
   
-  l = []
+  # ----------------------------------------------------------------------------
+  # Path or list?
+  #
+  # This looks very silly, but distinguishing a string and a list is not trivial
+  # (even less so in Python); and we need to support both std::vector and list,
+  # both str and std::string.
+  # The elements of all these types are of Python type str.
+  # So it is hereby decided that if they all are of length 1, then it's a string
+  # otherwise it is a list. Yes, this fails in an obvious corner case.
+  # Just don't call your file lists "a", "b" etc. Nor your files.
+  # Nevertheless, some special cases are singled out and specifically addressed.
+  
+  isClearlyList = isinstance(fileListPaths, (ROOT.std.vector[ROOT.std.string], list, set))
+  isClearlyPath = isinstance(fileListPaths, (ROOT.std.string, str))
+  # we expand the argument to support single-pass generators; what happens?
+  #  str              -> list[str] (one character each element)
+  #  std::string      -> [str ->] list[str] (one character each element)
+  #  Python iterable  -> list (usually?)
+  #  Python generator -> list
+  fileListList = list(fileListPaths)
+  if isClearlyList or (any(len(p) > 1 for p in fileListList) and not isClearlyPath):
+    Logger.debug("Input is a list of %d paths and will be expanded as such.",
+      len(fileListList))
+    return sum([ expandAgain(path) for path in fileListList ], [])
+  # if the argument is a list
+  
+  # at this point we believe the original argument was a string (not a list,
+  # not a generator) and we broke it into pieces into `fileListList`.
+  # But `fileListPath` is still whole, so we will use it.
+  
+  # ----------------------------------------------------------------------------
+  # Expand, at last
+  #
+  # from here on, it's only one file or file list
+  fileListPath = fileListPaths
+  hasSuffix = lambda s, suffixes: any(s.endswith(sx) for sx in suffixes)
+  
+  if hasSuffix(fileListPath, fileSuffixes):
+    Logger.debug("'%s' was for sure a file, not a file list.", fileListPath)
+    return [ fileListPath ]
+  
+  Logger.debug("Processing file list '%s'", fileListPath)
   with open(fileListPath, 'r') as fileList:
     
+    l = []
     for iLine, line in enumerate(fileList):
       line = line.strip()
       if not line: continue
@@ -292,23 +351,24 @@ def expandFileList(
         line = words[0]
         for left, right in zip(words[:-1], words[1:]):
           if left and left[-1].isspace():
-            logging.debug("Comment starting at line %d between '%s' and '%s'", iLine, left, right)
+            Logger.debug("Comment starting at line %d between '%s' and '%s'", iLine, left, right)
             break
           line += comment + right
         # for
         line = line.rstrip()
       # if comment
       
-      for suffix in fileListSuffixes:
-        if not line.endswith(suffix): continue
-        logging.debug("Adding content of file list from line %d ('%s')", iLine, line)
-        extra = expandFileList(line, comment=comment, fileListSuffixes=fileListSuffixes)
-        logging.debug("%d entries collected under file list '%s'", len(extra), line)
-        l.extend(extra)
-        break
+      if hasSuffix(line, fileListSuffixes):
+        # NOTE in case of conflicting suffixes, a line that matches both
+        # list and file suffixes is first treated as a list here, and recursive
+        # expansion is attempted; but the recursive expansion will consider it
+        # a file and then return it unexpanded.
+        Logger.debug("Adding content of file list from line %d ('%s')", iLine, line)
+        l.extend((extra:= expandAgain(line)))
+        Logger.debug("%d entries collected under file list '%s'", len(extra), line)
       else:
-        logging.debug("Line %d added to the list", iLine)
         l.append(line)
+        Logger.debug("Line %d added to the list", iLine)
       # for suffix... else
     # for line in list
     
