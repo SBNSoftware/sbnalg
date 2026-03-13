@@ -316,7 +316,7 @@ def loadSimpleService \
 
   if not isinstance(config, ROOT.fhicl.ParameterSet):
     try:
-      config = getServiceConfig(
+      config = readServiceConfig(
         getConfig=(config.service if config else registry.config),
         configKey=serviceName,
         )
