@@ -145,12 +145,13 @@ class SourceCentral:
     """Calls `load()` for each of the path specifications.
     
     A path specification is a dictionary of `load()` parameters, e.g.
-    `{ relPath: 'larcorealg_Geometry', extraPaths: [] }`.
+    `dict(relPath='larcorealg_Geometry', extraPaths=[])`.
     If a path specification is not a dictionary, it is assumed to be a `relPath`
-    and it is equivalent to having `{ relPath: pathSpec }`.
-    If an argument `extraPath` or `force` is specified in the path
-    specification, a value is used from the `extraPath` and `force` arguments
-    of this function.
+    and it is equivalent to having `dict(relPath=pathSpec)`.
+    If `extraPaths` or `force` are not specified in a path specification,
+    they default to the `extraPaths` and `force` arguments of this function;
+    if they are specified in the path specification, their values override
+    the defaults from this function.
     
     If `loadAll` is set, all loads are attempted; the return value is a pair:
     whether an exception was thrown, and a list of all return values or

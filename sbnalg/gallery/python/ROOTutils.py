@@ -262,14 +262,14 @@ def getROOTclass(classPath):
 ################################################################################
 # this is not really specific to ROOT, but we often have ROOT file lists
 def expandFileList(
- fileListPaths: "path (or paths) of the file list (or single file)",
+ dataPaths: "path (or paths) of the file list (or single file)",
  comment: "(default: '#') character used to introduce a comment" = '#',
- fileListSuffixes: "suffix of entries to recursively add file lists" = [],
- fileSuffixes: "suffix of entries never to be treated as file lists" = [ '.root' ],
+ fileListSuffixes: "suffix of entries to recursively add file lists" = (),
+ fileSuffixes: "suffix of entries never to be treated as file lists" = ( '.root', ),
  ) -> "a list of file names":
   """Returns a list of file names as found in the specified file lists.
   
-  The `fileListPaths` paths are read as text files; in them, each line
+  The `dataPaths` paths are read as text files; in them, each line
   represents a full file path.
   Empty lines and lines starting with a comment character are ignored.
   Also if blanks and a comment character are found, the content of the line
@@ -281,13 +281,16 @@ def expandFileList(
   If file suffixes are specified, a line ending with any of those suffixes
   will be considered a file, and not expanded. That takes priority over the file
   list suffix.
+  Only absolute paths are supported in file lists. The current behaviour,
+  which does not reject relative paths and assumes them relative to the current
+  directory, is not guaranteed and may change in the future (ideally, it will).
   
-  If any of the file lists in `fileListPaths` can't be read, an exception is
+  If any of the file lists in `dataPaths` can't be read, an exception is
   raised.
   
-  NOTE: because of the internal implementation, a `fileListPaths` that is a
+  NOTE: because of the internal implementation, a `dataPaths` that is a
     collection of file names that are all one character long may be mistaken
-    for a string. The general solution is: do not name your file not file lists
+    for a string. The general solution is: do not name your file nor file lists
     with a single-character name. It's most often a bad idea anyway.
   """
   
@@ -297,48 +300,65 @@ def expandFileList(
     )
   
   # ----------------------------------------------------------------------------
-  # Path or list?
+  # Path or collection of paths?
   #
-  # This looks very silly, but distinguishing a string and a list is not trivial
-  # (even less so in Python); and we need to support both std::vector and list,
-  # both str and std::string.
+  # This looks very silly, but distinguishing a string and a collection of
+  # strings is not trivial (even less so in Python); and we need to support both
+  # std::vector and list, both str and std::string.
   # The elements of all these types are of Python type str.
   # So it is hereby decided that if they all are of length 1, then it's a string
-  # otherwise it is a list. Yes, this fails in an obvious corner case.
-  # Just don't call your file lists "a", "b" etc. Nor your files.
+  # otherwise it is a collection. Yes, this fails in an obvious corner case.
+  # Just don't call your files or file lists "a", "b" etc.
   # Nevertheless, some special cases are singled out and specifically addressed.
   
-  isClearlyList = isinstance(fileListPaths, (ROOT.std.vector[ROOT.std.string], list, set))
-  isClearlyPath = isinstance(fileListPaths, (ROOT.std.string, str))
+  isClearlyColl = isinstance(dataPaths, (ROOT.std.vector[ROOT.std.string], list, tuple, set))
+  isClearlyPath = isinstance(dataPaths, (ROOT.std.string, str))
   # we expand the argument to support single-pass generators; what happens?
   #  str              -> list[str] (one character each element)
   #  std::string      -> [str ->] list[str] (one character each element)
   #  Python iterable  -> list (usually?)
   #  Python generator -> list
-  fileListList = list(fileListPaths)
-  if isClearlyList or (any(len(p) > 1 for p in fileListList) and not isClearlyPath):
+  dataPathList = list(dataPaths)
+  if isClearlyColl or (any(len(p) > 1 for p in dataPathList) and not isClearlyPath):
     Logger.debug("Input is a list of %d paths and will be expanded as such.",
-      len(fileListList))
-    return sum([ expandAgain(path) for path in fileListList ], [])
+      len(dataPathList))
+    return sum([ expandAgain(path) for path in dataPathList ], [])
   # if the argument is a list
   
-  # at this point we believe the original argument was a string (not a list,
-  # not a generator) and we broke it into pieces into `fileListList`.
-  # But `fileListPath` is still whole, so we will use it.
+  # at this point we believe the original argument was a string (not a
+  # collection nor generator) and we broke it into pieces into `dataPaths`.
+  # But `dataPaths` is still whole, so we will use it.
   
   # ----------------------------------------------------------------------------
   # Expand, at last
   #
-  # from here on, it's only one file or file list
-  fileListPath = fileListPaths
+  # from here on, it's only a single path (file or file list)
+  # 
+  # NOTE on relative paths: in principle we can expand relative paths prepending
+  #   the base path of the parent file list (if any; otherwise we can either
+  #   append the current directory, or leave them relative).
+  #   One complication is that paths may not be easy to identify as relative;
+  #   for example, a XRootD URL is considered by `os.path.isabs()` as relative.
+  #   Here `pathlib` module may help. Another complication is if a base path
+  #   includes symbolic links. Imagine an `output` directory structure with
+  #   `output/data/` and `output/lists/`, where the items of the file lists in
+  #   the latter all include a `../data` path. While that list works well when
+  #   expanded using its real path (`output/lists/../data/...`), when such list
+  #   is linked somewhere else, the simple expansion of those files to
+  #   `<current dir>/../data/...` will be broken. In addition, the use of
+  #   file-system-accessing functions as `os.path.realpath()` may still break
+  #   since those functions won't work paths like XRootD URL.
+  #   All of this can be worked around, with enough motivation.
+  # 
+  dataPath = dataPaths
   hasSuffix = lambda s, suffixes: any(s.endswith(sx) for sx in suffixes)
   
-  if hasSuffix(fileListPath, fileSuffixes):
-    Logger.debug("'%s' was for sure a file, not a file list.", fileListPath)
-    return [ fileListPath ]
+  if hasSuffix(dataPath, fileSuffixes):
+    Logger.debug("'%s' was for sure a file, not a file list.", dataPath)
+    return [ dataPath ]
   
-  Logger.debug("Processing file list '%s'", fileListPath)
-  with open(fileListPath, 'r') as fileList:
+  Logger.debug("Processing file list '%s'", dataPath)
+  with open(dataPath, 'r') as fileList:
     
     l = []
     for iLine, line in enumerate(fileList):

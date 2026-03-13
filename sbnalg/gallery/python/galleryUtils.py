@@ -289,11 +289,8 @@ def eventLoop(inputFiles,
   nSkip = options.get('nSkip', 0)
   nEvents = options.get('nEvents', None)
   
-  # make sure the input file list is in the right format
-  if not isinstance(inputFiles, ROOT.vector(ROOT.string)):
-    if isinstance(inputFiles, str): inputFiles = [ inputFiles, ]
-    inputFiles = makeFileList(*inputFiles)
-  # if
+  # create a gallery event with an expanded (flattened) input list
+  inputFiles = makeFileList(inputFiles)
   
   event = ROOT.gallery.Event(inputFiles)
   
@@ -533,7 +530,7 @@ class startMessageFacility:
     if not applName: applName = os.path.basename(sys.argv[0])
     if not applName: applName = "this application"
     if isinstance(config, ConfigurationClass): config = config.service("message")
-    Logger.debug("Starting message facility for {%s}...", applName)
+    Logger.debug("Starting message facility for %s...", applName)
     try:
       ROOT.mf.StartMessageFacility(config, applName)
     except ROOT.std.exception:

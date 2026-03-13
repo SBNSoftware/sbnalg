@@ -226,7 +226,7 @@ def serviceClassToConfigKeys(serviceClassName: str) -> list[str]:
   candidates = []
   
   # remove namespaces (namespaces are not part of any candidate)
-  try: serviceClassName = serviceClassName[:serviceClassName.index('::')]
+  try: serviceClassName = serviceClassName[serviceClassName.rindex('::')+2:]
   except ValueError: pass # no namespace
 
   if not serviceClassName: return [] # ?!
@@ -284,10 +284,10 @@ def readServiceConfig(getConfig, configKey, returnConfigKey = True):
     = tuple(base + suffix for base in serviceClassToConfigKeys(configKey))
   
   Logger.debug("Configuration from candidates: '%s'", "', '".join(configKeys))
-  for configKey in configKeys:
-    try: config = getConfig(configKey)
+  for candidateKey in configKeys:
+    try: config = getConfig(candidateKey)
     except Exception: continue
-    return (config, configKey) if returnConfigKey else config
+    return (config, candidateKey) if returnConfigKey else config
   raise RuntimeError(f"No configuration for service key '{configKey}'")
 # readServiceConfig()
 
@@ -319,6 +319,7 @@ def loadSimpleService \
       config = readServiceConfig(
         getConfig=(config.service if config else registry.config),
         configKey=serviceName,
+        returnConfigKey=False,
         )
     except RuntimeError:
       Logger.debug("Full configuration:\n%s",
@@ -400,7 +401,10 @@ class SimpleServiceLoader:
   def _needsSpecialConfig(self): return self.addConfig or self.purgeConfig
 
   def _makeConfig(self, registry):
-    """See the constructor for details on the configuration key algorithm."""
+    """Fetches, finalizes and returns the FHiCL configuration for the service.
+    
+    See the constructor for details on the configuration key algorithm.
+    """
     
     configKey = self.configKey
     if not configKey or configKey.startswith('.'):
@@ -471,16 +475,15 @@ class SimpleServiceLoader:
     The dependencies are expected to be a dictionary: provider name → provider object
     (`None` if not available).
     """
-    
-    # if we don't need a special configuration,
-    # we let loadSimpleService() find it
+   
+    # put together the configuration of the service being loaded
     registry = manager.registry()
     config = self._makeConfig(registry)
     Logger.debug("Service configuration:\n%s", config.to_indented_string())
 
     self._loadCode()
 
-    # loads the actual classes from ROOT
+    # load the actual classes from ROOT
     self.expandClass('serviceClass')
     if self.interfaceClass is not None: self.expandClass('interfaceClass')
     
@@ -701,6 +704,8 @@ class ServiceManagerInstance(ServiceManagerInterface):
     def isValid(self): return self.configPath is not None
     def hasExtraConfig(self): return bool(self.extraConfig)
     def needsCustom(self): return not self.fullConfig() or self.hasExtraConfig()
+    def serviceTableName(self):
+      return 'services' if self.fullConfig() else self.serviceTable
     
     def addExtraConfig(self, extra): self.extraConfig += "\n" + extra
 
@@ -743,7 +748,15 @@ class ServiceManagerInstance(ServiceManagerInterface):
   # get()
 
 
-  def defaultConfiguration(self): return None
+  def defaultConfiguration(self):
+    """Returns the default configuration.
+
+    The configuration is delivered as a ServiceManagerInstance.ConfigurationInfo object.
+    This configuration is used when the service manager is not explicitly
+    configured with `setConfiguration()`.
+    """
+    return ServiceManagerInstance.ConfigurationInfo()
+  # defaultConfiguration()
 
   def setConfiguration(self, configFile, serviceTable = None, extra = ""):
     """Sets which configuration to use for setup.
@@ -787,13 +800,18 @@ class ServiceManagerInstance(ServiceManagerInterface):
       else self.defaultConfiguration()
 
     # if assertion fails, then `setConfiguration()` was not correctly called.
-    assert configurationInfo.isValid()
+    if not configurationInfo or not configurationInfo.isValid():
+      raise RuntimeError(
+        "No configuration in place at setup time. Call 'setConfiguration()'"
+        " or override 'defaultConfiguration()' to provide a configuration file path."
+        )
+    # if
 
     if configurationInfo.needsCustom():
       Logger.debug(
         "Using service table '%s' from configuration file '%s' plus %d custom lines",
-        configurationInfo.serviceTable, configurationInfo.configPath,
-        sum(c == '\n' for c in configurationInfo.extraConfig),
+        configurationInfo.serviceTableName(), configurationInfo.configPath,
+        sum(c == '\n' for c in configurationInfo.extraConfig) + 1,
         )
       config = galleryUtils.ConfigurationString(
           '#include "{configPath}"'
@@ -811,7 +829,7 @@ class ServiceManagerInstance(ServiceManagerInterface):
         '\n# ==============================='
         .format(
           configPath=configurationInfo.configPath,
-          serviceTable=configurationInfo.serviceTable,
+          serviceTable=configurationInfo.serviceTableName(),
           extraConfig=configurationInfo.extraConfig,
           )
         )
