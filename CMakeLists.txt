@@ -36,7 +36,6 @@ find_package( ROOT REQUIRED )
 
 # macros for dictionary and simple_plugin
 include(ArtDictionary)
-include(BuildPlugins)
 
 add_subdirectory(sbnalg)
 add_subdirectory(test)
