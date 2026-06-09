@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-
 __doc__ = """
 Collection of utilities to interface gallery with python.
 
@@ -43,10 +41,12 @@ __all__ = [
   'ConfigurationHelper',
   ]
 
-import sys, os
+import sys, os, logging
 from ROOTutils import ROOT, expandFileList
 import cppUtils
 import warnings
+
+Logger = logging.getLogger(__name__)
 
 
 ################################################################################
@@ -151,20 +151,15 @@ make_getValidHandle = HandleMaker()
 
 def makeFileList(
  *filePaths: "a list of input files"
- ) -> "a list of files suitable to construct a `gallery.Event object":
+ ) -> "a list of files suitable to construct a `gallery.Event` object":
   """Creates a file list suitable for `gallery::Event`.
   
   If a file ends with `.root`, it is added directly to the list.
   Otherwise, it is interpreted as a file list and treated as such
   (see `ROOTutils.expandFileList()`).
-  File list recursion is disabled.
   """
-  files = ROOT.vector(ROOT.string)()
-  for path in filePaths:
-    entries = [ path ] if path.endswith('.root') else expandFileList(path)
-    for entry in entries: files.push_back(entry)
-  # for
-  return files
+  return expandFileList(filePaths,
+    fileListSuffixes=[ '.list', '.filelist' ], fileSuffixes=[ '.root' ])
 # makeFileList()
 
 
@@ -215,10 +210,19 @@ def forEach(
   being skipped).
   """
   if fromStart:
-    if skipEvents > 0: event.goToEntry(skipEvents)
-    else:              event.toBegin()
-  elif skipEvents > 0:
+    if skipEvents > 0: 
+      try:
+        event.goToEntry(skipEvents)
+      except ROOT.std.exception:
+        # encountered in v10_06_00_01p05 for no good reason;
+        # it will take care of this later
+        Logger.debug("event.goToEntry(%d) encountered a possible bug...", skipEvents)
+      else: skipEvents = 0 # no event left to be skipped
+    else: event.toBegin()
+  if skipEvents > 0: # may be from failure above too...
+    Logger.debug("Skipping %d events one by one...", skipEvents)
     for _ in range(skipEvents): event.next() # probably slower than goToEntry()
+    Logger.debug("Skipping finished")
   nEvents = 0
   while (not event.atEnd() and ((maxEvents is None) or (nEvents < maxEvents))):
     yield event
@@ -285,11 +289,8 @@ def eventLoop(inputFiles,
   nSkip = options.get('nSkip', 0)
   nEvents = options.get('nEvents', None)
   
-  # make sure the input file list is in the right format
-  if not isinstance(inputFiles, ROOT.vector(ROOT.string)):
-    if isinstance(inputFiles, str): inputFiles = [ inputFiles, ]
-    inputFiles = makeFileList(*inputFiles)
-  # if
+  # create a gallery event with an expanded (flattened) input list
+  inputFiles = makeFileList(inputFiles)
   
   event = ROOT.gallery.Event(inputFiles)
   
@@ -304,7 +305,7 @@ def eventLoop(inputFiles,
     
     if iFile != event.fileEntry():
       iFile = event.fileEntry()
-      print("Opening: '%s'" % inputFiles[iFile])
+      Logger.info("Opening: '%s'", inputFiles[iFile])
     # if new file
     
     # event flow control
@@ -324,7 +325,7 @@ def eventLoop(inputFiles,
     
   # for
   if nErrors > 0:
-    print("Encountered %d/%d errors." % (nErrors, nProcessedEvents),file=sys.stderr)
+    Logger.error("Encountered %d/%d errors.", nErrors, nProcessedEvents)
   return nErrors
 # eventLoop()
 
@@ -529,8 +530,16 @@ class startMessageFacility:
     if not applName: applName = os.path.basename(sys.argv[0])
     if not applName: applName = "this application"
     if isinstance(config, ConfigurationClass): config = config.service("message")
-    print(f"Starting message facility for {applName}...")
-    ROOT.mf.StartMessageFacility(config, applName)
+    Logger.debug("Starting message facility for %s...", applName)
+    try:
+      ROOT.mf.StartMessageFacility(config, applName)
+    except ROOT.std.exception:
+      Logger.critical(
+        "The (possibly mute) exception below was raised"
+        " when setting up message facility service."
+        " A possible cause is a wrong service configuration."
+        )
+      raise
     startMessageFacility.Init = True
   # init()
 # class startMessageFacility
