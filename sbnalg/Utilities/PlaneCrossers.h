@@ -36,7 +36,8 @@ namespace util {
  * 
  * geo::Point_t const lineStart{ 0.0, 1.0, 0.0 };
  * geo::Vector_t const lineDir{ 0.0, 1.0, 1.0 };
- * util::PlaneCrossers::CrossingInfo const crossing = plane(lineStart, lineDir);
+ * util::PlaneCrossers<geo::Point_t>::CrossingInfo const crossing
+ *   = plane(lineStart, lineDir);
  * std::cout << "Intersection point: ";
  * if (crossing) std::cout << (lineStart + crossing.line * lineDir);
  * else          std::cout << " undefined.";
@@ -191,8 +192,8 @@ class util::PlaneCrossers {
 }; // util::PlaneCrossers
 
 namespace util {
-  template <typename Point, typename Vector>
-  PlaneCrossers(Point, Vector) -> PlaneCrossers<std::decay_t<Point>>;
+  template <typename Point, typename UVector, typename VVector>
+  PlaneCrossers(Point, UVector, VVector) -> PlaneCrossers<std::decay_t<Point>>;
 }
 
 
@@ -227,7 +228,9 @@ auto util::PlaneCrossers<Point>::findCrossing
   
   using geo::vect::mixedProduct;
   double const detA = mixedProduct(U, V, D);
-  if (std::abs(detA) < 1e-5) return {}; // return the default, invalid
+  double const detScale2
+    = geo::vect::mag2(U) * geo::vect::mag2(V) * geo::vect::mag2(D);
+  if ((detA*detA) < 1e-12 * detScale2) return {}; // return the default, invalid
   
   Dir_t const& SminusC = startPoint - center();
   return {
