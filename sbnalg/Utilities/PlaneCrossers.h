@@ -225,10 +225,7 @@ auto util::PlaneCrossers<Point>::findCrossing
   Dir_t const& V = Vaxis();
   Dir_t const& D = dir;
   
-  CrossingInfo crossing;
-  
   using geo::vect::mixedProduct;
-  
   double const detA = mixedProduct(U, V, D);
   if (std::abs(detA) < 1e-5) return {}; // return the default, invalid
   

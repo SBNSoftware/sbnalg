@@ -1,5 +1,5 @@
 /**
- * @file   PlaneCrossers_test.cc
+ * @file   PlaneCrossers_test.cxx
  * @brief  Unit test for `util::PlaneCrossers`.
  * @date   June 13, 2025
  * @author Gianluca Petrillo (petrillo@slac.stanford.edu)
@@ -23,7 +23,10 @@
 #include <array>
 #include <cassert>
 #include <cmath> // std::abs()
-
+#include <iostream>
+#include <string>
+#include <type_traits>
+#include <utility> // std::swap
 
 //------------------------------------------------------------------------------
 //---  The tests
