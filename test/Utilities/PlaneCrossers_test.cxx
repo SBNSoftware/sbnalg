@@ -38,7 +38,6 @@ namespace details {
   template <typename T>
   constexpr bool isNonzero(T v, T tol = T{1e-8}) { return !isZero(v, tol); }
   
-  
   template <typename T>
   constexpr T cycleUp(T var, T min, T max) { return (++var >= max)? min: var; }
   template <typename T>
@@ -62,7 +61,7 @@ namespace details {
     using Vector_t = geo::Vector_t;
     
     using geo::vect::dimension, geo::vect::mag2, geo::vect::coord,
-      geo::vect::dot, geo::vect::normalize;
+      geo::vect::dot, geo::vect::normalize, std::abs;
     
     constexpr std::size_t dim = dimension<Vector_t>();
     
@@ -73,26 +72,25 @@ namespace details {
     
     // So: find the smallest coordinate, then the other two.
     std::size_t smallestCoord = findSmallestCoord(v);
-    std::size_t largestCoord = cycleUp(smallestCoord, dim);
-    std::size_t middleCoord = cycleUp(largestCoord, dim);
-    if (std::abs(coord(v, largestCoord)) < std::abs(coord(v, middleCoord)))
-      std::swap(middleCoord, largestCoord);
+    std::size_t otherCoord1 = cycleUp(smallestCoord, dim);
+    std::size_t otherCoord2 = cycleUp(otherCoord1, dim);
     
     Vector_t o = v; // orthogonal
-    if (isZero(coord(v, largestCoord) - coord(v, middleCoord))) {
+    // if (isZero(coord(v, otherCoord1) - coord(v, otherCoord2))) {
+    if (isZero(abs(coord(v, otherCoord1)) - abs(coord(v, otherCoord2)))) {
       // the two largest coordinates have the same value;
       // that value can't be 0 (or else the smallest would also be 0),
       // so setting one to `0` will change the direction of the vector
-      coord(o, largestCoord) = 0.0;
+      coord(o, otherCoord1) = 0.0;
     }
     else {
       // the two largest coordinates have the different value;
       // swapping them will change the direction of the vector
-      coord(o, largestCoord) = coord(v, middleCoord);
-      coord(o, middleCoord) = coord(v, largestCoord);
+      coord(o, otherCoord1) = coord(v, otherCoord2);
+      coord(o, otherCoord2) = coord(v, otherCoord1);
     }
     
-    o -= dot(o, v) * v; // remove the component of `o` along `v`
+    o -= dot(o, v) / mag2(v) * v; // remove the component of `o` along `v`
     
     return geo::vect::normalize(o);
   } // makeAnOrthogonalVector()
@@ -146,7 +144,10 @@ void planeTest(geo::Point_t const& center, geo::Vector_t const& dir) {
   BOOST_TEST_CONTEXT(
     "Test on plane at " << center << " with normal=" << plane.normalAxis()
       << ", u=" << plane.Uaxis() << ", v=" << plane.Vaxis()
+      << " (from " << dir << ")"
   ) {
+    BOOST_REQUIRE_SMALL(geo::vect::mixedProduct(Uaxis, Vaxis, planeDir) - 1.0, 1e-6);
+
     for (double const dirStepX: dirSteps) {
       for (double const dirStepY: dirSteps) {
         for (double const dirStepZ: dirSteps) {
@@ -224,7 +225,8 @@ void PlaneCrossers_classDoc_1() {
 
   geo::Point_t const lineStart{ 0.0, 1.0, 0.0 };
   geo::Vector_t const lineDir{ 0.0, 1.0, 1.0 };
-  util::PlaneCrossers<geo::Point_t>::CrossingInfo const crossing = plane(lineStart, lineDir);
+  util::PlaneCrossers<geo::Point_t>::CrossingInfo const crossing
+    = plane(lineStart, lineDir);
   std::cout << "Intersection point: ";
   if (crossing) std::cout << (lineStart + crossing.line * lineDir);
   else          std::cout << " undefined.";
