@@ -2,7 +2,7 @@
 include(CetTest)
 
 cet_make_library(
-  LIBRARY_NAME Test
+  LIBRARY_NAME Test_sbnalg
   INTERFACE
   SOURCE
     FrameworkEventMockup.h
