@@ -6,11 +6,12 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 
 find_package(cetmodules 3.27.00 REQUIRED)
-project(sbnalg VERSION 10.06.00.12 LANGUAGES CXX)
+project(sbnalg LANGUAGES CXX)
 
 message(STATUS "\n\n  ==========================   ${PROJECT_NAME}   ==========================")
 
 include(CetCMakeEnv)
+set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING 10.06.00.14-lf01)
 cet_cmake_env()
 
 cet_set_compiler_flags(DIAGS PARANOID
