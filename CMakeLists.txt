@@ -22,16 +22,16 @@ cet_set_compiler_flags(DIAGS PARANOID
 cet_report_compiler_flags(REPORT_THRESHOLD VERBOSE)
 
 # these are minimum required versions, not the actual product versions
-find_package( messagefacility REQUIRED )
-find_package( nusimdata REQUIRED )
-find_package( lardataobj REQUIRED )
-find_package( larcoreobj REQUIRED )
-find_package( larcorealg REQUIRED )
-find_package( lardataalg REQUIRED )
-find_package( sbnobj REQUIRED )
-find_package( sbnanaobj REQUIRED )
-find_package( CLHEP REQUIRED )
-find_package( ROOT REQUIRED )
+find_package( messagefacility REQUIRED EXPORT )
+find_package( nusimdata REQUIRED EXPORT )
+find_package( lardataobj REQUIRED EXPORT )
+find_package( larcoreobj REQUIRED EXPORT )
+find_package( larcorealg REQUIRED EXPORT )
+find_package( lardataalg REQUIRED EXPORT )
+find_package( sbnobj REQUIRED EXPORT )
+find_package( sbnanaobj REQUIRED EXPORT )
+find_package( CLHEP REQUIRED EXPORT )
+find_package( ROOT REQUIRED EXPORT )
 find_package( Boost COMPONENTS system filesystem REQUIRED )
 
 # macros for dictionary and simple_plugin
